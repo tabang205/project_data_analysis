@@ -1,0 +1,10 @@
+[
+  {
+    "question": "Biên lợi nhuận gộp của Vinamilk năm 2023 đạt bao nhiêu phần trăm?",
+    "ground_truth": "Biên lợi nhuận gộp của Vinamilk năm 2023 đạt xấp xỉ 40.7%."
+  },
+  {
+    "question": "Tổng chi phí bán hàng của công ty trong kỳ là bao nhiêu?",
+    "ground_truth": "Chi phí bán hàng ghi nhận là 9.456 tỷ đồng."
+  }
+]

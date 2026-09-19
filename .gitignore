@@ -1,0 +1,81 @@
+# ==========================================
+# Python Virtual Environments
+# ==========================================
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# ==========================================
+# Byte-compiled / Cache files
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# ==========================================
+# Secrets, Keys & Environment Variables
+# ==========================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+id_rsa*
+secrets/
+credentials*.json
+token*.json
+
+# ==========================================
+# Heavy Files, Model Weights & Large Binaries
+# ==========================================
+*.pt
+*.pth
+*.bin
+*.onnx
+*.safetensors
+*.h5
+*.ckpt
+*.tar
+*.tar.gz
+*.zip
+*.7z
+*.rar
+*.parquet
+*.arrow
+*.db
+*.sqlite
+*.sqlite3
+
+# ==========================================
+# Large Data & Vector DB Directories
+# ==========================================
+**/data/vector_db/*
+!**/data/vector_db/.gitkeep
+
+# Ignore raw scanned invoice files & heavy test PDFs
+invoices_scan/*
+!invoices_scan/.gitkeep
+
+financial-rag/data/raw/*.pdf
+financial-rag/data/raw/*.bin
+
+# ==========================================
+# Logs & OS artifacts
+# ==========================================
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
