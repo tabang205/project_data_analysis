@@ -1,0 +1,201 @@
+:root {
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-muted: #f1f5f9;
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --accent-primary: #2563eb;
+  --accent-soft: #eff6ff;
+  --status-good: #10b981;
+  --status-warn: #f59e0b;
+  --status-danger: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-mono-num {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom thin scrollbars for independent panes */
+.pane-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.pane-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pane-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.pane-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Left rail button states */
+.rail-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  color: #64748b;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.rail-btn:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.rail-btn.active {
+  background-color: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+.rail-btn.active::before {
+  content: "";
+  position: absolute;
+  left: -9px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background-color: #2563eb;
+}
+
+/* Sidebar department list item */
+.dept-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.12s ease;
+}
+
+.dept-item:hover {
+  background-color: #f1f5f9;
+}
+
+.dept-item.active {
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+/* Top wireframe tab buttons */
+.workbench-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  background-color: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.workbench-tab:last-child {
+  border-right: none;
+}
+
+.workbench-tab:hover {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.workbench-tab.active {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  box-shadow: inset 0 2px 0 0 #2563eb;
+  border-bottom-color: transparent;
+}
+
+/* Visual cards in the 3-column hero row */
+.visual-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.visual-card:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.visual-card-media {
+  position: relative;
+  height: 156px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-in;
+}
+
+.visual-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #ffffff;
+}
+
+/* Table row selection */
+.triage-row {
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.triage-row:hover {
+  background-color: #f8fafc;
+}
+
+.triage-row.selected {
+  background-color: #eff6ff !important;
+}

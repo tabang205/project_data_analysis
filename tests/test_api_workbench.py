@@ -215,3 +215,22 @@ def test_fallback_mode_when_kaggle_results_missing(
         res = client.get(path)
         assert res.status_code == 200
     assert client.get("/api/v1/health").json()["kaggle_ready"] is False
+
+
+def test_frontend_five_zone_dom_and_static_assets() -> None:
+    client = TestClient(app)
+    html_res = client.get("/")
+    assert html_res.status_code == 200
+    html = html_res.text
+    for zone in ("left-rail", "sidebar", "main-content", "right-sidebar", "bottom-bar"):
+        assert f'data-zone="{zone}"' in html
+    for tab_id in ("tab-eda", "tab-risk", "tab-cashflow"):
+        assert f'data-tab="{tab_id}"' in html
+
+    js_res = client.get("/static/app.js")
+    assert js_res.status_code == 200
+    assert "console.log(" not in js_res.text
+
+    css_res = client.get("/static/styles.css")
+    assert css_res.status_code == 200
+

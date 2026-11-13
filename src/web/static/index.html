@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Metro Nashville AP Risk &amp; Cashflow Workbench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="flex flex-col h-screen w-screen overflow-hidden select-none bg-slate-50 text-slate-900">
+
+  <!-- TOP 4-PANE WORKBENCH SHELL (left-rail | sidebar | main-content | right-sidebar) -->
+  <div class="flex flex-1 min-h-0 w-full overflow-hidden">
+
+    <!-- 1. LEFT RAIL (Icon Navigation Bar) -->
+    <aside
+      data-zone="left-rail"
+      aria-label="Primary workbench navigation rail"
+      class="w-14 shrink-0 bg-white border-r border-slate-200 flex flex-col items-center justify-between py-3 z-20"
+    >
+      <div class="flex flex-col items-center gap-2.5">
+        <button
+          type="button"
+          data-rail="workbench"
+          class="rail-btn active"
+          title="AP Analytics Workbench (Home)"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5.5v-6.5h-5V21H4a1 1 0 01-1-1v-9.5z" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          data-rail="search"
+          class="rail-btn"
+          title="Focus Department &amp; Invoice Triage Search"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20 20l-3.5-3.5" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          data-rail="alerts"
+          class="rail-btn"
+          title="High-Risk Late Payment Alerts (Jump to Track 1 Triage)"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          data-rail="docs"
+          class="rail-btn"
+          title="Vietnamese Data Science Learning Curriculum (docs/learning/)"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.6a1 1 0 01.7.3l5.4 5.4a1 1 0 01.3.7V19a2 2 0 01-2 2z" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          data-rail="settings"
+          class="rail-btn"
+          title="Toggle Active Model (XGBoost Isotonic vs LightGBM Isotonic)"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.3 4.3c.4-1.7 2.9-1.7 3.4 0a1.7 1.7 0 002.6 1.1c1.5-.9 3.3.8 2.4 2.4a1.7 1.7 0 001.1 2.6c1.7.4 1.7 2.9 0 3.4a1.7 1.7 0 00-1.1 2.6c.9 1.5-.8 3.3-2.4 2.4a1.7 1.7 0 00-2.6 1.1c-.4 1.7-2.9 1.7-3.4 0a1.7 1.7 0 00-2.6-1.1c-1.5.9-3.3-.8-2.4-2.4a1.7 1.7 0 00-1.1-2.6c-1.7-.4-1.7-2.9 0-3.4a1.7 1.7 0 001.1-2.6c-.9-1.5.8-3.3 2.4-2.4.9.6 2.3.1 2.6-1.1z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Bottom User / Portfolio Avatar -->
+      <div class="flex flex-col items-center gap-2">
+        <div
+          class="w-8 h-8 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center text-slate-600 font-semibold text-xs"
+          title="Metro Nashville AP Data Science Portfolio"
+        >
+          DS
+        </div>
+      </div>
+    </aside>
+
+    <!-- 2. LEFT SIDEBAR (Department Navigator & Filter Feed) -->
+    <aside
+      data-zone="sidebar"
+      aria-label="Department and scope navigator"
+      class="w-64 shrink-0 bg-white border-r border-slate-200 flex flex-col min-h-0"
+    >
+      <!-- Top Search / Scope Selector Box (matches wireframe top bar with chevron) -->
+      <div class="p-3 border-b border-slate-200">
+        <div class="relative flex items-center">
+          <input
+            id="dept-search-input"
+            type="text"
+            placeholder="Filter departments..."
+            class="w-full bg-slate-100 border border-slate-200 rounded-md py-1.5 pl-3 pr-7 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition"
+          />
+          <span class="absolute right-2.5 text-slate-400 text-xs font-bold pointer-events-none">&rsaquo;</span>
+        </div>
+        <div class="mt-2 flex items-center justify-between text-[11px] text-slate-500 px-0.5">
+          <span>Operating departments</span>
+          <span id="sidebar-dept-count" class="font-mono-num font-semibold text-slate-700">--</span>
+        </div>
+      </div>
+
+      <!-- Scrollable List of Circle + Two-Line Department Items (matches wireframe) -->
+      <div id="department-list" class="flex-1 overflow-y-auto pane-scroll p-2 space-y-1">
+        <!-- Populated dynamically by app.js -->
+      </div>
+    </aside>
+
+    <!-- 3. CENTER MAIN CONTENT (3 Top Tabs + Workspace Canvas) -->
+    <main
+      data-zone="main-content"
+      class="flex-1 flex flex-col min-w-0 min-h-0 bg-white"
+    >
+      <!-- Top 3-Tab Segmented Header (matches wireframe 3 equal tabs) -->
+      <nav aria-label="Workbench tracks" class="flex w-full shrink-0 border-b border-slate-200 bg-white">
+        <button
+          type="button"
+          data-tab="tab-eda"
+          class="workbench-tab active"
+        >
+          <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+          <span>1. Data Audit &amp; Statistical EDA</span>
+        </button>
+        <button
+          type="button"
+          data-tab="tab-risk"
+          class="workbench-tab"
+        >
+          <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+          <span>2. Late Payment Risk (Track 1)</span>
+        </button>
+        <button
+          type="button"
+          data-tab="tab-cashflow"
+          class="workbench-tab"
+        >
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span>3. Cashflow Forecast (Track 2)</span>
+        </button>
+      </nav>
+
+      <!-- Scrollable Main Workspace Body -->
+      <div id="main-scroll-canvas" class="flex-1 overflow-y-auto pane-scroll p-6 space-y-6 select-text">
+
+        <!-- Section Header (2-line headline + subtitle matching wireframe) -->
+        <header class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="active-scope-pill" class="px-2 py-0.5 text-[11px] font-semibold rounded bg-blue-50 text-blue-700 border border-blue-200">
+                All Departments (Citywide)
+              </span>
+              <span id="active-track-pill" class="px-2 py-0.5 text-[11px] font-mono-num rounded bg-slate-100 text-slate-600">
+                Out-of-Time Holdout: 2025-01 to 2025-10
+              </span>
+            </div>
+            <h1 id="workspace-headline" class="mt-1.5 text-lg font-bold tracking-tight text-slate-900">
+              Metro Nashville Vendor Payment Grain Audit &amp; Statistical Distribution
+            </h1>
+            <p id="workspace-subheadline" class="text-xs text-slate-500 mt-0.5">
+              1,307,617 raw ArcGIS lines consolidated via DuckDB into 811,914 clean invoices with a 61-day right-censoring buffer.
+            </p>
+          </div>
+
+          <!-- Compact KPI strip -->
+          <div id="header-kpi-strip" class="flex items-center gap-2.5">
+            <!-- Populated dynamically -->
+          </div>
+        </header>
+
+        <!-- Row of 3 Visual Cards (matches the 3 framed image cards in wireframe) -->
+        <section aria-label="Primary visual diagnostics" id="visual-cards-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- 3 cards populated dynamically per active tab -->
+        </section>
+
+        <!-- Middle Analytical Section (Narrative + Interactive Chart / Benchmark Table) -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          <!-- Interactive Chart.js Canvas Panel (5 cols) -->
+          <div class="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-lg p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div>
+                <h2 id="primary-chart-title" class="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Interactive Out-of-Time Telemetry
+                </h2>
+                <p id="primary-chart-subtitle" class="text-[11px] text-slate-500">
+                  Live API slice for selected scope
+                </p>
+              </div>
+              <span id="primary-chart-badge" class="text-[11px] font-mono-num px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
+                Test n=195,889
+              </span>
+            </div>
+            <div class="h-56 w-full bg-white border border-slate-200 rounded p-2">
+              <canvas id="main-interactive-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Benchmark & Narrative Panel (7 cols) -->
+          <div class="lg:col-span-7 bg-white border border-slate-200 rounded-lg p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div>
+                <h2 id="benchmark-table-title" class="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Verified Benchmark Matrix
+                </h2>
+                <p id="benchmark-table-subtitle" class="text-[11px] text-slate-500">
+                  Grounded directly in artifacts/baseline_metrics.json &amp; gbdt_metrics.json
+                </p>
+              </div>
+              <button
+                id="open-docs-inline-btn"
+                type="button"
+                class="text-xs font-medium text-blue-600 hover:text-blue-800 underline"
+              >
+                Read Learning Note &rarr;
+              </button>
+            </div>
+            <div id="benchmark-table-container" class="overflow-x-auto">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Bottom Action Card + Interactive Triage Explorer (matches horizontal card at bottom of wireframe) -->
+        <section class="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-4 bg-white border border-slate-200 rounded-lg p-3.5">
+            <div class="flex items-center gap-3.5">
+              <div class="w-10 h-10 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">
+                AP
+              </div>
+              <div>
+                <h3 id="action-banner-title" class="text-xs font-bold text-slate-900">
+                  High-Risk Invoice Triage &amp; Audit Action Queue
+                </h3>
+                <p id="action-banner-subtitle" class="text-xs text-slate-500 mt-0.5">
+                  Click any invoice row below to inspect its predicted late probability, expected payment days, and dollar exposure in the Right Inspector.
+                </p>
+              </div>
+            </div>
+
+            <!-- Filter controls + CTA Button (matches right CTA box in wireframe) -->
+            <div class="flex flex-wrap items-center gap-2">
+              <label class="text-[11px] text-slate-600 flex items-center gap-1">
+                <span>Min $</span>
+                <input
+                  id="triage-min-amount"
+                  type="number"
+                  value="5000"
+                  min="0"
+                  step="1000"
+                  class="w-24 px-2 py-1 text-xs font-mono-num bg-slate-50 border border-slate-300 rounded"
+                />
+              </label>
+              <label class="text-[11px] text-slate-600 flex items-center gap-1">
+                <span>P(late) &ge;</span>
+                <input
+                  id="triage-prob-threshold"
+                  type="number"
+                  value="0.55"
+                  min="0.05"
+                  max="0.95"
+                  step="0.05"
+                  class="w-16 px-2 py-1 text-xs font-mono-num bg-slate-50 border border-slate-300 rounded"
+                />
+              </label>
+              <button
+                id="apply-triage-btn"
+                type="button"
+                class="px-3.5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition cursor-pointer"
+              >
+                Run Triage Filter
+              </button>
+            </div>
+          </div>
+
+          <!-- Interactive High-Risk Invoices Table -->
+          <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+            <div class="px-3.5 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-[11px] text-slate-600">
+              <span id="triage-summary-text" class="font-medium">Loading triage queue...</span>
+              <span class="font-mono-num text-slate-500">Click a row to inspect &rarr;</span>
+            </div>
+            <div class="max-h-56 overflow-y-auto pane-scroll">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead class="bg-slate-50 text-[11px] uppercase text-slate-500 sticky top-0 border-b border-slate-200">
+                  <tr>
+                    <th class="py-2 px-3">Invoice #</th>
+                    <th class="py-2 px-3">Supplier</th>
+                    <th class="py-2 px-3">Department</th>
+                    <th class="py-2 px-3">Invoice Date</th>
+                    <th class="py-2 px-3 text-right">Amount</th>
+                    <th class="py-2 px-3 text-right">P(Late)</th>
+                    <th class="py-2 px-3 text-right">Pred Days</th>
+                    <th class="py-2 px-3 text-right">Actual Days</th>
+                    <th class="py-2 px-3 text-center">Outcome</th>
+                  </tr>
+                </thead>
+                <tbody id="triage-table-body" class="divide-y divide-slate-100 font-mono-num text-[11px]">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- 4. RIGHT SIDEBAR (Inspector, Checklist & Mini SHAP Preview) -->
+    <aside
+      data-zone="right-sidebar"
+      aria-label="Model diagnostics and entity inspector"
+      class="w-80 shrink-0 bg-white border-l border-slate-200 flex flex-col min-h-0 overflow-y-auto pane-scroll p-4 space-y-5"
+    >
+      <!-- Top Header + 3-Item Bordered Checklist Box (matches top of right sidebar in wireframe) -->
+      <div>
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700">
+          Pipeline Verification Gate
+        </h2>
+        <p class="text-[11px] text-slate-500 mb-2.5">
+          Anti-leakage &amp; statistical guardrails
+        </p>
+        <div class="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-2.5">
+          <div class="flex items-start gap-2.5">
+            <span class="w-3.5 h-3.5 mt-0.5 rounded-full bg-emerald-100 border border-emerald-500 flex items-center justify-center shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+            </span>
+            <div>
+              <div class="text-xs font-semibold text-slate-800">DuckDB 6-Key Invoice Grain</div>
+              <div class="text-[11px] text-slate-500">811,914 clean invoices; 11,927 credits isolated</div>
+            </div>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <span class="w-3.5 h-3.5 mt-0.5 rounded-full bg-emerald-100 border border-emerald-500 flex items-center justify-center shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+            </span>
+            <div>
+              <div class="text-xs font-semibold text-slate-800">Point-in-Time Strict (&lt; t)</div>
+              <div class="text-[11px] text-slate-500">Bayesian m=5 smoothing + 61d censoring buffer</div>
+            </div>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <span class="w-3.5 h-3.5 mt-0.5 rounded-full bg-emerald-100 border border-emerald-500 flex items-center justify-center shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+            </span>
+            <div>
+              <div class="text-xs font-semibold text-slate-800">Isotonic Calibration &amp; log1p</div>
+              <div class="text-[11px] text-slate-500">Brier 0.1469 | 14d Cashflow MAPE 0.65%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Middle Preview Box (matches crossed preview rectangle in right sidebar of wireframe) -->
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700">
+            SHAP Top 5 Global Drivers
+          </h2>
+          <span class="text-[10px] font-mono-num text-slate-500">mean |SHAP|</span>
+        </div>
+        <div class="h-44 w-full border border-slate-200 rounded-lg bg-slate-50 p-2">
+          <canvas id="right-shap-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Bottom 3-Bullet Inspector List (matches 3 circle+text items at bottom of right sidebar) -->
+      <div class="flex-1">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700">
+            Active Entity Inspector
+          </h2>
+          <span id="inspector-mode-badge" class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">
+            Department Scope
+          </span>
+        </div>
+        <div id="right-inspector-items" class="space-y-2.5">
+          <!-- Populated dynamically with 3 circular indicator rows -->
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- 5. BOTTOM BAR (Status & Telemetry Footer across viewport bottom) -->
+  <footer
+    data-zone="bottom-bar"
+    aria-label="Workbench status bar"
+    class="h-8 shrink-0 w-full bg-slate-900 text-slate-300 border-t border-slate-800 px-4 flex items-center justify-between text-[11px] font-mono-num z-30"
+  >
+    <div class="flex items-center gap-4">
+      <span class="flex items-center gap-1.5 text-emerald-400 font-semibold">
+        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span id="status-bar-mode">KAGGLE_GBDT_ACTIVE</span>
+      </span>
+      <span class="text-slate-500">|</span>
+      <span id="status-bar-counts">Clean: 811,914 &bull; Test Hold-out: 195,889 (20.76% late)</span>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <button
+        id="footer-model-toggle"
+        type="button"
+        class="hover:text-white transition cursor-pointer"
+        title="Click to switch active triage model"
+      >
+        Active Model: <strong id="status-bar-model" class="text-blue-400">XGBoost (Isotonic)</strong>
+      </button>
+      <span class="text-slate-500">|</span>
+      <span>FastAPI v1.0 &bull; DuckDB + LightGBM/XGBoost</span>
+    </div>
+  </footer>
+
+  <!-- MODAL 1: Image Lightbox for zooming verified PNG charts -->
+  <div
+    id="image-lightbox-modal"
+    class="fixed inset-0 bg-slate-900/75 z-50 hidden items-center justify-center p-6"
+  >
+    <div class="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+        <h3 id="lightbox-caption" class="text-sm font-bold text-slate-800">Chart Preview</h3>
+        <button id="close-lightbox-btn" type="button" class="text-slate-500 hover:text-slate-900 text-sm font-bold px-2 py-1">
+          &times; Close
+        </button>
+      </div>
+      <div class="p-4 overflow-auto flex items-center justify-center bg-slate-50">
+        <img id="lightbox-img" src="" alt="Enlarged diagnostic plot" class="max-h-[78vh] w-auto object-contain rounded border border-slate-200 bg-white" />
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Vietnamese Data Science Learning Curriculum Drawer -->
+  <div
+    id="learning-docs-modal"
+    class="fixed inset-0 bg-slate-900/60 z-50 hidden items-center justify-end"
+  >
+    <div class="bg-white w-full max-w-4xl h-full flex flex-col shadow-2xl border-l border-slate-200 select-text">
+      <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Data Science Learning Curriculum &amp; Troubleshooting Log</h3>
+          <p class="text-[11px] text-slate-500">Grounded Vietnamese study guides generated from real project findings</p>
+        </div>
+        <button id="close-docs-btn" type="button" class="px-3 py-1 rounded bg-slate-200 hover:bg-slate-300 text-xs font-semibold text-slate-800">
+          Close
+        </button>
+      </div>
+      <div class="flex flex-1 min-h-0">
+        <div id="docs-nav-list" class="w-64 border-r border-slate-200 p-3 space-y-1 overflow-y-auto pane-scroll bg-slate-50">
+          <!-- Populated dynamically -->
+        </div>
+        <div id="docs-content-viewer" class="flex-1 p-6 overflow-y-auto pane-scroll prose prose-slate max-w-none text-xs leading-relaxed whitespace-pre-wrap font-mono-num">
+          Select a document on the left...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

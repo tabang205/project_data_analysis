@@ -3,10 +3,10 @@
 An end-to-end, leakage-free Data Science system for **Accounts Payable (AP) Late Payment Risk Scoring** and **Cashflow Timing Forecasting**, built on **1,307,617** real Metro Nashville Vendor Payment records (`$12.94B` across `19,688` independent suppliers).
 
 <p align="center">
-  <img src="assets/demo.webp" alt="Metro Nashville AP Risk & Cashflow Interactive Dashboard Demo" width="90%" />
+  <img src="assets/workbench_preview.png" alt="Metro Nashville AP 5-Zone Enterprise Analytics Workbench (FastAPI + Tailwind/JS)" width="96%" />
 </p>
 
-> *Fallback GIF*: [assets/demo.gif](assets/demo.gif)
+> **5-Zone Enterprise Workbench UI** (`src/api/main.py` + `src/web/static/`): Left navigation rail, department filter sidebar, 3-track analytical workspace, right-hand model verification & SHAP/invoice inspector, and live telemetry status bar.
 
 ---
 
@@ -33,7 +33,7 @@ flowchart LR
     D --> E["Point-in-Time Feature Pipeline<br/>DuckDB ASOF JOIN + Two-Heap Median<br/>20 features, prior.payment_date < curr.invoice_date"]
     E --> F["Dual-Track Baselines<br/>LogisticRegression & Ridge<br/>src/models/train_baseline.py"]
     E --> G["Calibrated GBDT & SHAP<br/>LightGBM + XGBoost (Kaggle/Local)<br/>src/models/train_gbdt.py"]
-    F --> H["3-Tab Interactive Portfolio App<br/>src/app/dashboard.py"]
+    F --> H["5-Zone FastAPI Workbench & Streamlit App<br/>src/api/main.py & src/app/dashboard.py"]
     G --> H
 ```
 
@@ -193,8 +193,9 @@ python -m src.models.train_gbdt --out-dir artifacts/kaggle_results
 pytest tests/ -v
 ```
 
-### 4. Launch Interactive Streamlit Dashboard
+### 4. Launch 5-Zone Enterprise Workbench UI (FastAPI + Tailwind/JS)
 ```powershell
-streamlit run src/app/dashboard.py
+uvicorn src.api.main:app --reload --port 8000
 ```
-*(If `artifacts/kaggle_results/` is absent, the dashboard automatically displays a guidance banner and falls back gracefully to `artifacts/baseline_metrics.json` and EDA summaries.)*
+Open `http://127.0.0.1:8000` to explore the 5-zone AP Risk & Cashflow Workbench (or run `streamlit run src/app/dashboard.py` for the classic Streamlit view).
+*(If `artifacts/kaggle_results/` is absent, both interfaces automatically fall back to `artifacts/baseline_metrics.json` and EDA summaries.)*
