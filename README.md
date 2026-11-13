@@ -1,68 +1,48 @@
-# Financial Data Analysis & Intelligent Document Processing (RAG + OCR)
+# Financial Accounts Payable Data Science Project
 
-Bộ giải pháp phân tích dữ liệu kế toán - tài chính kết hợp **Production Financial RAG** (Contextual Retrieval + Hybrid Search) và **Intelligent Document Processing (IDP)** trích xuất, đối soát hóa đơn tự động bằng PaddleOCR & Qwen-VL/LLM.
+An end-to-end predictive machine learning system for Accounts Payable (AP) cashflow management and vendor payment risk analysis, built on real Metro Nashville Vendor Payments data (~1.3M records).
 
-## Demo Trực Quan (AP & Invoice Dashboard)
+## Project Overview
 
-![Financial Data Analysis Demo](assets/demo.webp)
+- **Dual-Track Objective**:
+  - **Classification (`is_late`)**: Predict whether an incoming vendor invoice will be paid late (`days_to_pay > 30` days) to prioritize approvals and mitigate supplier friction.
+  - **Regression (`days_to_pay`)**: Predict expected settlement days (modeled via `log1p(days_to_pay)`) to forecast accurate cashflow outflow schedules.
+- **Data Engine**: DuckDB SQL for invoice grain resolution and multi-line item aggregation; Pandera for rigorous schema validation.
+- **Machine Learning**: Point-in-time out-of-time temporal feature engineering, class-weighted baselines, and calibrated LightGBM/XGBoost models with SHAP explanations.
+- **Interactive UI**: Streamlit application for risk scoring and cashflow calendar visualization.
 
-> *Nếu trình duyệt không hỗ trợ Animated WebP, xem bản [GIF dự phòng](assets/demo.gif).*
+## Architecture & Directory Layout
 
----
-
-## Cấu trúc Dự án
-
-```text
-project_data_analysis/
-├── financial-rag/                      # Hệ thống RAG Phân tích Báo cáo Tài chính (ChromaDB + BM25)
-│   ├── src/
-│   │   ├── core/                       # Vector Store, Hybrid Retriever & Chunking
-│   │   ├── ingestion/                  # Trích xuất PDF & Contextual Prepending
-│   │   ├── llm/                        # Kết nối LLM & Sinh câu trả lời kèm trích dẫn
-│   │   └── evaluation/                 # Đánh giá độ chính xác (Ground Truth Eval)
-│   ├── app.py                          # Giao diện Streamlit cho Financial Copilot
-│   ├── financial_rag_modular_pipeline.ipynb
-│   └── requirements.txt
-├── invoices_scan/                      # Thư mục lưu trữ hóa đơn đầu vào (được ignore dữ liệu thô)
-├── paddleocr_qwen_extraction.py        # Pipeline OCR & LLM bóc tách thông tin hóa đơn
-├── invoice_validation.py               # Kiểm tra tính hợp lệ, đối soát chéo số liệu hóa đơn
-├── ap_analysis.py                      # Phân tích Công nợ Phải trả (Accounts Payable Analysis)
-├── streamlit_app.py                    # Dashboard tương tác kiểm duyệt hóa đơn & phân tích AP
-├── data-analysis.ipynb                 # Notebook EDA & Phân tích dữ liệu tổng hợp
-├── colab_learning.ipynb                # Notebook thực nghiệm huấn luyện / chạy trên Google Colab
-└── kaggle_production.ipynb             # Notebook triển khai pipeline trên Kaggle GPU
+```
+├── artifacts/              # Serialized models, metrics, and SHAP artifacts (gitignored)
+├── data/
+│   ├── raw/                # Raw ingested Parquet files from ArcGIS FeatureServer
+│   ├── interim/            # Grain-resolved invoice payments & audit tables
+│   └── processed/          # Point-in-time train/val/test feature matrices
+├── docs/
+│   ├── learning/           # Concept deep-dives and troubleshooting logs
+│   └── superpowers/        # Architectural specs and implementation plans
+├── src/
+│   ├── app/                # Streamlit dashboard and UI components
+│   ├── data/               # Ingestion, schema validation, and grain resolution
+│   ├── features/           # Temporal feature engineering & out-of-time splits
+│   ├── models/             # Baselines, tree models, calibration, and SHAP
+│   └── config.py           # Centralized immutable configuration
+├── tests/                  # Unit and integration test suite
+├── pyproject.toml          # Project configuration & pytest settings
+└── requirements.txt        # Pinned project dependencies
 ```
 
----
+## Getting Started
 
-## Tính năng Chính
-
-1. **Financial RAG Copilot (`financial-rag/`)**
-   - Trích xuất bảng biểu báo cáo tài chính PDF sang Markdown bảo toàn cấu trúc.
-   - Áp dụng **Contextual Retrieval** kết hợp **Hybrid Search (ChromaDB Dense Vector + BM25)**.
-   - Trích dẫn nguồn chính xác, chống ảo giác số liệu (Zero Calculation Hallucination).
-
-2. **Bóc tách & Đối soát Hóa đơn Tự động (`paddleocr_qwen_extraction.py`, `invoice_validation.py`)**
-   - Nhận diện ký tự quang học tiếng Việt độ chính xác cao với **PaddleOCR** kết hợp mô hình ngôn ngữ lớn **Qwen**.
-   - Tự động kiểm tra chéo tổng tiền trước thuế, thuế suất VAT và tổng thanh toán.
-
-3. **Phân tích Công nợ Phải trả (`ap_analysis.py`, `streamlit_app.py`)**
-   - Thống kê dòng tiền, phân tích tuổi nợ (Aging Schedule), phát hiện hóa đơn bất thường hoặc trùng lặp.
-
----
-
-## Hướng dẫn Cài đặt & Chạy
-
-```bash
-# 1. Tạo và kích hoạt môi trường ảo
+### 1. Environment Setup
+```powershell
 python -m venv .venv
-.venv\Scripts\activate
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
-# 2. Cài đặt thư viện
-pip install -r financial-rag/requirements.txt
-
-# 3. Chạy ứng dụng Streamlit
-streamlit run streamlit_app.py
-# Hoặc chạy Financial RAG Copilot:
-streamlit run financial-rag/app.py
+### 2. Run Tests
+```powershell
+pytest -v
 ```
