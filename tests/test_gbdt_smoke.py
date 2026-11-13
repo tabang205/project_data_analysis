@@ -4,6 +4,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+import pytest
 
 from src.features.build_features import (
     CATEGORICAL_FEATURES,
@@ -73,6 +74,12 @@ def test_train_dual_gbdt_models_smoke(tmp_path: Path) -> None:
     metrics_path = out_dir / "gbdt_metrics.json"
     assert metrics_path.exists()
     loaded_metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+
+    meta = loaded_metrics["meta"]
+    assert meta["val_calibrated_in_sample"] is True
+    for model_tag in ("lgb_cls", "xgb_cls", "lgb_reg", "xgb_reg"):
+        assert model_tag in meta["best_params"]
+        assert isinstance(meta["best_iteration"][model_tag], int)
 
     for model_key in ("lgbm", "xgb"):
         assert model_key in metrics
@@ -154,3 +161,16 @@ def test_train_dual_gbdt_models_smoke(tmp_path: Path) -> None:
         fig_path = out_dir / fig_name
         assert fig_path.exists(), f"Missing figure: {fig_name}"
         assert fig_path.stat().st_size > 0
+
+
+def test_train_dual_gbdt_models_rejects_empty_split(tmp_path: Path) -> None:
+    train_df = _make_synthetic_split(seed=10, n_samples=20, start_date="2023-07-01")
+    empty_df = train_df.iloc[0:0].copy()
+    with pytest.raises(ValueError, match="non-empty"):
+        train_dual_gbdt_models(
+            train_df=train_df,
+            val_df=empty_df,
+            test_df=train_df,
+            out_dir=tmp_path / "empty_out",
+            n_estimators=5,
+        )

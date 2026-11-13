@@ -288,6 +288,14 @@ def _save_cashflow_forecast_plot(
     plt.close(fig)
 
 
+def _extract_best_iteration(model: Any) -> int | None:
+    """Return early-stopping best iteration across LightGBM (best_iteration_) and XGBoost (best_iteration)."""
+    best_iter = getattr(model, "best_iteration_", None)
+    if best_iter is None:
+        best_iter = getattr(model, "best_iteration", None)
+    return int(best_iter) if best_iter is not None else None
+
+
 def _compute_and_save_shap(
     lgb_clf: lgb.LGBMClassifier,
     X_test: pd.DataFrame,
@@ -333,9 +341,33 @@ def train_dual_gbdt_models(
     Track 1 predicts late-payment probability (`is_late`) with post-hoc isotonic calibration on `val_df`.
     Track 2 predicts `log1p(days_to_pay)` and evaluates inverted day error and horizon cash outflow.
     """
+    if train_df.empty or val_df.empty or test_df.empty:
+        raise ValueError("train_df, val_df, and test_df must all be non-empty DataFrames.")
+
     out_dir.mkdir(parents=True, exist_ok=True)
     stopping_rounds = min(50, max(5, n_estimators // 5))
     min_child_samples = min(20, max(2, len(train_df) // 10))
+
+    lgb_params: dict[str, Any] = {
+        "n_estimators": int(n_estimators),
+        "learning_rate": 0.05,
+        "num_leaves": 31,
+        "min_child_samples": int(min_child_samples),
+        "subsample": 0.8,
+        "subsample_freq": 1,
+        "colsample_bytree": 0.8,
+        "random_state": 42,
+    }
+    xgb_params: dict[str, Any] = {
+        "n_estimators": int(n_estimators),
+        "learning_rate": 0.05,
+        "max_depth": 6,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "early_stopping_rounds": int(stopping_rounds),
+        "tree_method": "hist",
+        "random_state": 42,
+    }
 
     encoder = _fit_ordinal_encoder(train_df)
     X_train = _encode_split_features(train_df, encoder)
@@ -357,66 +389,22 @@ def train_dual_gbdt_models(
         len(test_df),
     )
 
-    lgb_clf = lgb.LGBMClassifier(
-        n_estimators=n_estimators,
-        learning_rate=0.05,
-        num_leaves=31,
-        min_child_samples=min_child_samples,
-        subsample=0.8,
-        subsample_freq=1,
-        colsample_bytree=0.8,
-        random_state=42,
-        n_jobs=-1,
-        verbose=-1,
-    )
+    lgb_clf = lgb.LGBMClassifier(**lgb_params, n_jobs=-1, verbose=-1)
     _fit_lgb_with_early_stopping(
         lgb_clf, X_train, y_train_cls, X_val, y_val_cls, stopping_rounds
     )
     lgb_cal = _fit_posthoc_calibrator(lgb_clf, X_val, y_val_cls)
 
-    xgb_clf = xgb.XGBClassifier(
-        n_estimators=n_estimators,
-        learning_rate=0.05,
-        max_depth=6,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        eval_metric="logloss",
-        early_stopping_rounds=stopping_rounds,
-        tree_method="hist",
-        random_state=42,
-        n_jobs=-1,
-    )
+    xgb_clf = xgb.XGBClassifier(**xgb_params, eval_metric="logloss", n_jobs=-1)
     xgb_clf.fit(X_train, y_train_cls, eval_set=[(X_val, y_val_cls)], verbose=False)
     xgb_cal = _fit_posthoc_calibrator(xgb_clf, X_val, y_val_cls)
 
-    lgb_reg = lgb.LGBMRegressor(
-        n_estimators=n_estimators,
-        learning_rate=0.05,
-        num_leaves=31,
-        min_child_samples=min_child_samples,
-        subsample=0.8,
-        subsample_freq=1,
-        colsample_bytree=0.8,
-        random_state=42,
-        n_jobs=-1,
-        verbose=-1,
-    )
+    lgb_reg = lgb.LGBMRegressor(**lgb_params, n_jobs=-1, verbose=-1)
     _fit_lgb_with_early_stopping(
         lgb_reg, X_train, y_train_reg, X_val, y_val_reg, stopping_rounds
     )
 
-    xgb_reg = xgb.XGBRegressor(
-        n_estimators=n_estimators,
-        learning_rate=0.05,
-        max_depth=6,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        eval_metric="rmse",
-        early_stopping_rounds=stopping_rounds,
-        tree_method="hist",
-        random_state=42,
-        n_jobs=-1,
-    )
+    xgb_reg = xgb.XGBRegressor(**xgb_params, eval_metric="rmse", n_jobs=-1)
     xgb_reg.fit(X_train, y_train_reg, eval_set=[(X_val, y_val_reg)], verbose=False)
 
     models_bundle = {
@@ -433,6 +421,19 @@ def train_dual_gbdt_models(
             "n_estimators": int(n_estimators),
             "features": list(FEATURE_COLS),
             "calibration_method": "isotonic",
+            "val_calibrated_in_sample": True,
+            "best_params": {
+                "lgb_cls": dict(lgb_params),
+                "xgb_cls": dict(xgb_params),
+                "lgb_reg": dict(lgb_params),
+                "xgb_reg": dict(xgb_params),
+            },
+            "best_iteration": {
+                "lgb_cls": _extract_best_iteration(lgb_clf),
+                "xgb_cls": _extract_best_iteration(xgb_clf),
+                "lgb_reg": _extract_best_iteration(lgb_reg),
+                "xgb_reg": _extract_best_iteration(xgb_reg),
+            },
         }
     }
 
