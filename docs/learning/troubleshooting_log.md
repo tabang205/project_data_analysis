@@ -63,3 +63,25 @@ Mỗi sự cố được ghi lại theo định dạng:
   - **Tổng số bản ghi**: Chính xác 1,307,617 dòng (khớp 100% với metadata ArcGIS FeatureServer `count=1307617`).
   - **Thời gian thực thi**: ~14 phút 53 giây với cơ chế stream chunk Parquet, ghi nguyên tử (atomic write) và tự động dọn sạch thư mục tạm `.tmp_chunks_nashville_raw`.
 - **Bài học kinh nghiệm**: Luôn xử lý biên nanosecond cho timestamp trước khi ép kiểu trong Pandas, và kết hợp Parquet chunking để vừa tiết kiệm RAM vừa hỗ trợ resume an toàn khi download dữ liệu lớn.
+
+### ERR-20261113-05: Sai Số Dấu Phẩy Động Nhị Phân & Tham Số Hóa Script Đa Câu Lệnh Trong DuckDB
+- **Thời gian & Giai đoạn**: 2026-11-13 | Task 3: DuckDB Grain Resolution & Data Quality Audit
+- **Triệu chứng**:
+  1. Khi cộng dồn các dòng chi phí phân bổ âm và dương bằng `SUM(Distribution_Amount)` trong DuckDB (kiểu DOUBLE), xuất hiện các sai số nhị phân siêu nhỏ quanh số 0 (ví dụ `1e-14`), khiến một số bản ghi bù trừ công nợ lẽ ra bằng đúng 0 đồng lại bị nhận diện nhầm thành số dương và lọt vào tập hóa đơn thanh toán sạch (`invoices_clean.parquet`).
+  2. Khi chạy kịch bản SQL chứa nhiều câu lệnh ngăn cách bởi dấu chấm phẩy qua `con.execute(sql_script, params)`, DuckDB ném lỗi: `Not implemented Error: Prepared parameters are only supported for the last statement`. Nếu tách chuỗi thủ công mà truyền toàn bộ dict tham số cho mọi câu lệnh thì DuckDB ném tiếp lỗi: `Invalid Input Error: Parameter argument/count mismatch, identifiers of the excess parameters...` vì các tham số thừa không xuất hiện trong câu lệnh đó.
+- **Nguyên nhân cốt lõi**:
+  - Chuẩn IEEE 754 của số thực dấu phẩy động không bảo toàn tuyệt đối các phép trừ khử tiền tệ nếu không có hàm làm tròn số học (Rounding).
+  - Trình biên dịch DuckDB prepared statements kiểm tra cực kỳ chặt chẽ: chỉ chuẩn bị tham số cho 1 câu lệnh duy nhất và cấm tuyệt đối tham số thừa ngoài cú pháp của câu lệnh đó.
+- **Giải pháp xử lý**:
+  - Áp dụng `ROUND(SUM(Distribution_Amount), 2)` trong câu lệnh SQL gom nhóm để triệt tiêu hoàn toàn nhiễu `1e-14`, phân tách chính xác tuyệt đối 11,927 bản ghi credit memos (`invoice_amount <= 0`) và 811,914 hóa đơn dương (`invoice_amount > 0`).
+  - Trong Python `build_dataset.py`, tách kịch bản SQL theo dấu chấm phẩy và lọc động danh sách tham số tương ứng với từng câu lệnh: `stmt_params = {k: v for k, v in params.items() if f"${k}" in stmt}` trước khi thực thi.
+- **Kết quả nghiệm thu thực tế (Live Execution Evidence)**:
+  - **Tập thô**: 1,307,617 dòng raw.
+  - **Dòng vi phạm thời gian bị loại (`dropped_bad_dates`)**: 57,152 dòng (81 dòng gõ nhầm 1991, 190 dòng gõ nhầm 2083, 56,881 dòng `Invoice_Date > Payment_Date`).
+  - **Dòng thiếu khóa (`dropped_missing_keys`)**: 0 dòng.
+  - **Tập hợp nhất (`grouped_rows`)**: 823,841 hóa đơn (tỷ lệ nén 1.52 dòng thô/hóa đơn).
+    - Hóa đơn dương sạch (`clean_invoice_rows`): 811,914 hóa đơn (23.80 MB Snappy Parquet).
+    - Hóa đơn bù trừ/giảm trừ (`credit_memo_rows`): 11,927 hóa đơn (0.37 MB Snappy Parquet).
+  - **Thời gian xử lý toàn trình**: ~2.8 giây.
+- **Bài học kinh nghiệm**: Luôn dùng hàm `ROUND(..., 2)` đối với các trường tiền tệ tài chính khi tổng hợp bằng DuckDB/SQL, và xây dựng cơ chế bóc tách tham số độc lập cho từng prepared statement.
+
