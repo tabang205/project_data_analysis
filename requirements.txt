@@ -16,8 +16,10 @@ matplotlib==3.11.2
 seaborn==0.13.2
 plotly==7.1.0
 
-# Interactive Application
+# Interactive Application & API
 streamlit==1.63.0
+fastapi==0.162.7
+httpx==0.28.1
 
 # Configuration & Utilities
 pydantic==2.13.5
