@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
 import altair as alt
 import pandas as pd
 import streamlit as st
+
+_REPO_ROOT = str(Path(__file__).resolve().parents[2])
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 from src.app.loaders import (
     EDA_PLOT_SPECS,
@@ -61,7 +66,7 @@ def cached_department_breakdown(
     min_invoices: int,
 ) -> pd.DataFrame:
     """Cache per-department regression & risk breakdown for Tab 3."""
-    preds_df = load_test_predictions(Path(artifacts_dir_str))
+    preds_df = cached_test_predictions(artifacts_dir_str)
     if preds_df is None:
         return pd.DataFrame()
     return compute_department_error_breakdown(preds_df, min_invoices=min_invoices)
@@ -70,10 +75,25 @@ def cached_department_breakdown(
 @st.cache_data(ttl="15m", max_entries=5)
 def cached_horizon_comparison(artifacts_dir_str: str) -> pd.DataFrame:
     """Cache 7d/14d/30d/60d actual vs GBDT cash outflow summary."""
-    preds_df = load_test_predictions(Path(artifacts_dir_str))
+    preds_df = cached_test_predictions(artifacts_dir_str)
     if preds_df is None:
         return pd.DataFrame()
     return compute_cashflow_horizon_comparison(preds_df)
+
+
+@st.cache_data(ttl="15m", max_entries=20)
+def cached_weekly_cashflow_series(
+    artifacts_dir_str: str,
+    departments_key: tuple[str, ...],
+) -> pd.DataFrame:
+    """Cache weekly cash outflow series keyed by artifacts dir and selected departments."""
+    preds_df = cached_test_predictions(artifacts_dir_str)
+    if preds_df is None:
+        return pd.DataFrame(columns=["Payment Week", "Series", "Outflow ($M)"])
+    return compute_weekly_cashflow_series(
+        preds_df,
+        departments=list(departments_key) if departments_key else None,
+    )
 
 
 def render_image_grid(images: list[tuple[str, Path]], columns_per_row: int = 2) -> None:
@@ -96,7 +116,9 @@ def render_high_risk_triage_section(preds_df: pd.DataFrame) -> None:
     )
 
     departments = sorted(preds_df["primary_department"].dropna().unique().tolist())
-    max_amt = float(preds_df["invoice_amount"].max())
+    raw_max = float(preds_df["invoice_amount"].max()) if not preds_df.empty else 0.0
+    max_amt = raw_max if pd.notna(raw_max) and raw_max > 0.0 else 0.0
+    default_amt = min(1000.0, max_amt) if max_amt > 0.0 else 0.0
 
     with st.container(border=True):
         ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1.2, 1.5, 1.3])
@@ -131,8 +153,8 @@ def render_high_risk_triage_section(preds_df: pd.DataFrame) -> None:
             min_amount = st.number_input(
                 "Minimum invoice amount ($)",
                 min_value=0.0,
-                max_value=max_amt,
-                value=1000.0,
+                max_value=max(max_amt, 1.0),
+                value=default_amt,
                 step=500.0,
                 key="triage_min_amount",
             )
@@ -219,7 +241,10 @@ def render_cashflow_interactive_section(
         key="cashflow_departments",
     )
 
-    weekly_df = compute_weekly_cashflow_series(preds_df, departments=selected_depts or None)
+    weekly_df = cached_weekly_cashflow_series(
+        artifacts_dir_str,
+        tuple(sorted(selected_depts)),
+    )
     horizon_df = cached_horizon_comparison(artifacts_dir_str)
 
     chart_col1, chart_col2 = st.columns([1.6, 1.0])
@@ -351,14 +376,25 @@ if not kaggle_ready:
         icon=":material/info:",
     )
 
-if gbdt_metrics is not None:
+if gbdt_metrics is not None and "xgb" in gbdt_metrics and "test" in gbdt_metrics["xgb"]:
     xgb_test_cls = gbdt_metrics["xgb"]["test"]["classification"]
     xgb_test_reg = gbdt_metrics["xgb"]["test"]["regression"]
+    raw_rows_delta = (
+        f"From {audit_summary['raw_rows']:,} raw distributions"
+        if audit_summary and "raw_rows" in audit_summary
+        else None
+    )
+    h14 = xgb_test_reg.get("cashflow_horizons", {}).get("14d", {})
+    h14_delta = (
+        f"${h14['predicted_outflow'] / 1e6:,.1f}M vs ${h14['actual_outflow'] / 1e6:,.1f}M actual"
+        if "predicted_outflow" in h14 and "actual_outflow" in h14
+        else None
+    )
     with st.container(horizontal=True):
         st.metric(
             "Clean invoices",
             f"{audit_summary['clean_invoice_rows']:,}" if audit_summary else "811,914",
-            delta="From 1,307,617 raw distributions",
+            delta=raw_rows_delta,
             delta_color="off",
             border=True,
         )
@@ -376,9 +412,9 @@ if gbdt_metrics is not None:
             border=True,
         )
         st.metric(
-            "14-day Cashflow MAPE",
-            f"{xgb_test_reg['cashflow_horizons']['14d']['mape_pct']:.2f}%",
-            delta="$1,769.6M vs $1,781.1M actual",
+            "14-day cashflow MAPE",
+            f"{h14.get('mape_pct', 0.0):.2f}%",
+            delta=h14_delta,
             delta_color="off",
             border=True,
         )
@@ -394,7 +430,7 @@ elif baseline_metrics is not None and "test" in baseline_metrics:
         st.metric("Test PR-AUC (Logistic)", f"{base_cls['pr_auc']:.4f}", border=True)
         st.metric("Test MAE (Ridge)", f"{base_reg['mae']:.2f} days", border=True)
         st.metric(
-            "30-day Cashflow MAPE (Ridge)",
+            "30-day cashflow MAPE (Ridge)",
             f"{base_reg['cashflow_horizons']['30d']['mape_pct']:.2f}%",
             border=True,
         )

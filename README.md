@@ -179,7 +179,7 @@ python -m src.models.train_baseline
 
 # 5. Train dual-track LightGBM + XGBoost with Isotonic Calibration & SHAP
 #    (or run notebooks/02_kaggle_training.ipynb on Kaggle GPU/CPU)
-python -m src.models.train_gbdt
+python -m src.models.train_gbdt --out-dir artifacts/kaggle_results
 ```
 
 ### 3. Automated Test Suite

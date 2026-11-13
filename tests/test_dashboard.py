@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -27,7 +31,7 @@ from src.app.loaders import (
 )
 
 
-def _sample_baseline_metrics() -> dict:
+def _sample_baseline_metrics() -> dict[str, Any]:
     cls_block = {
         "pr_auc": 0.30,
         "roc_auc": 0.60,
@@ -166,6 +170,28 @@ def test_dashboard_apptest_smoke_real_artifacts() -> None:
 
     at.segmented_control(key="triage_model").set_value("LightGBM").run()
     assert not at.exception
+
+    at.multiselect(key="cashflow_departments").select("MNPS").run()
+    assert not at.exception
+
+    at.slider(key="dept_min_invoices").set_value(1000).run()
+    assert not at.exception
+
+
+def test_dashboard_imports_without_pythonpath(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+    result = subprocess.run(
+        [sys.executable, str(DASHBOARD_PATH)],
+        cwd=str(tmp_path),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, f"stderr: {result.stderr}"
+    assert "ModuleNotFoundError" not in result.stderr
 
 
 def test_dashboard_apptest_graceful_fallback_without_kaggle(
