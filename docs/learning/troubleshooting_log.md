@@ -99,4 +99,24 @@ Mỗi sự cố được ghi lại theo định dạng:
   - Sử dụng các thước đo thống kê phi tham số (Non-parametric: Median, IQR, Percentiles) và kiểm định thứ hạng Mann-Whitney U thay vì Mean, Std hay Student's t-test khi so sánh các nhóm dữ liệu.
 - **Bài học kinh nghiệm**: Trong bài toán dự báo tài chính AP hoặc Survival Analysis có mốc chốt dữ liệu (data snapshot cutoff), luôn phân tích phân vị thời gian hoàn tất (`p90 completion time`) để tạo vùng đệm an toàn trước mốc chốt, ngăn ngừa triệt để Right-Censoring Bias.
 
+### ERR-20261113-07: Thiên Lệch Cắt Trái (Left-Truncation Bias) Trước 2022-07-01 & Tối Ưu Point-in-Time Rolling Trên 811k Dòng
+- **Thời gian & Giai đoạn**: 2026-11-13 | Task 5: Point-in-Time Feature Engineering & Time Splits (`src/features/build_features.py`)
+- **Triệu chứng**:
+  1. Khi kiểm tra phân phối `is_late` theo tháng trên `data/interim/invoices_clean.parquet`, 21,329 hóa đơn phát hành trước `2022-07-01` có tỷ lệ trễ hạn lên tới **52.40%**, đặc biệt từ tháng `2022-01` đến `2022-05` tỷ lệ trễ hạn đạt **100.00%** (trung vị `days_to_pay` từ 69 đến 252 ngày), lệch hoàn toàn so với mức nền ~24–28%.
+  2. Tính toán các đặc trưng lịch sử nghiêm ngặt theo điều kiện `prior.payment_date < curr.invoice_date` (bao gồm cửa sổ trượt 90d/365d và trung vị mở rộng `prior_vendor_median_amount`) bằng self-join trực tiếp trên 811,914 dòng gặp nút thắt hiệu năng nghiêm trọng do các siêu nhà cung cấp (56,015 hóa đơn) và siêu phòng ban (MNPS 366,343 hóa đơn).
+- **Nguyên nhân cốt lõi**:
+  - Sổ cái thanh toán của Nashville chỉ bắt đầu ghi nhận các khoản giải ngân từ `min(Payment_Date) = 2022-07-01`. Mọi hóa đơn phát hành đầu năm 2022 nếu trả đúng hạn ($\le 30$ ngày) đã được chi trả trước `2022-07-01` và biến mất khỏi tập dữ liệu — tạo ra **Left-Truncation Bias** (chỉ các hóa đơn trễ kéo dài mới xuất hiện).
+  - Self-join $O(N^2)$ sinh ra hàng chục tỷ cặp trung gian khi một nhóm có hàng trăm nghìn bản ghi.
+- **Giải pháp xử lý**:
+  - Giữ toàn bộ 811,914 dòng khi tính lịch sử thanh toán (vì các khoản trả của hóa đơn cũ đều xảy ra từ `2022-07-01` trở đi), sau đó trong `split_out_of_time` áp dụng chặn biên kép: `train_start = "2022-07-01"` (loại 21,329 dòng cắt trái) và `test_end = "2025-10-31"` (loại 22,308 dòng cắt phải).
+  - Triển khai kiến trúc lai $O(N \log N)$: nén bảng tổng tích lũy theo ngày kết hợp **DuckDB `ASOF LEFT JOIN`** cho các cửa sổ đếm/trung bình/độ lệch chuẩn 7d/30d/90d/365d, và **Two-Heap Two-Pointer** (`_compute_vendor_prior_medians`) cho trung vị mở rộng `amount_vs_vendor_median_ratio`.
+- **Kết quả nghiệm thu thực tế (Live Feature Execution Evidence)**:
+  - **Thời gian tạo 20 đặc trưng cho 811,914 dòng**: **4.04 giây** (toàn trình đọc/ghi Parquet ~5.4 giây).
+  - **Tập Train (`2022-07-01`..`2024-06-30`)**: 456,414 dòng (24.55 MB), `late_rate = 27.53%`, `cold_start = 4.47%`.
+  - **Tập Val (`2024-07-01`..`2024-12-31`)**: 115,974 dòng (6.40 MB), `late_rate = 19.09%`, `cold_start = 2.17%`.
+  - **Tập Test (`2025-01-01`..`2025-10-31`)**: 195,889 dòng (10.73 MB), `late_rate = 20.76%`, `cold_start = 1.97%`.
+  - **Kiểm định toàn vẹn**: 0 giá trị `NaN`/`Inf`/null trên toàn bộ 20 cột đặc trưng; đối chiếu 50 dòng ngẫu nhiên từ tập `val` khớp **50/50 (100%)** với phép tính brute-force Pandas.
+- **Bài học kinh nghiệm**: Luôn kiểm tra cả hai đầu phân phối thời gian (Left-Truncation tại đầu dữ liệu và Right-Censoring tại cuối dữ liệu) khi biến mốc chia tập (`invoice_date`) khác với biến mốc thu thập sổ cái (`payment_date`).
+
+
 
