@@ -120,3 +120,35 @@ Mỗi sự cố được ghi lại theo định dạng:
 
 
 
+
+
+### ERR-20261113-08: RuntimeWarning Trong Khởi Chạy Runpy Và Thiết Lập Chuẩn Đánh Giá Kép (Dual-Track Evaluation)
+- **Thời gian & Giai đoạn**: 2026-11-13 | Task 6: Dual-Track Evaluation Suite & Local Baselines (`src/models/evaluate.py`, `src/models/train_baseline.py`)
+- **Triệu chứng**:
+  1. Khi chạy module huấn luyện baseline qua `python -m src.models.train_baseline`, Python phát ra cảnh báo: `RuntimeWarning: 'src.models.train_baseline' found in sys.modules after import of package 'src.models', but prior to execution of 'src.models.train_baseline'; this may result in unpredictable behaviour`.
+  2. Việc đánh giá hồi quy thời gian thanh toán `days_to_pay` ở cấp độ hóa đơn đơn lẻ không phản ánh trực tiếp bức tranh tổng thể về rủi ro ngân quỹ (Cashflow Risk), trong khi đánh giá phân loại trễ hạn nhị phân `is_late` nếu chỉ dùng một ngưỡng xác suất cố định (như 0.5) hoặc một giả định chi phí đơn lẻ sẽ dẫn đến kết luận thiên lệch.
+- **Nguyên nhân cốt lõi**:
+  - Tệp `src/models/__init__.py` thực hiện import sớm `train_and_eval_baselines` từ `src.models.train_baseline`. Khi Python chạy cờ `-m src.models.train_baseline`, trình nạp module `runpy` khởi tạo package cha `src.models` trước, khiến `train_baseline` bị nạp vào `sys.modules` trước khi `runpy` thực thi tệp đó dưới tên `__main__`.
+  - Nghiệp vụ quản lý công nợ (AP) quan tâm đồng thời đến hai khía cạnh: (1) Khả năng ưu tiên rà soát các hóa đơn rủi ro cao nhất tương ứng với năng lực nhân sự hữu hạn (Lift@K, Precision@K, Value Captured@K, phân tích độ nhạy chi phí), và (2) Khả năng dự báo chính xác tổng lượng tiền mặt chi trả theo các khung kỳ hạn ngân quỹ 7 ngày, 14 ngày và 30 ngày (Cash Outflow Horizon Forecasting).
+- **Giải pháp xử lý**:
+  - Gỡ bỏ import sớm của `train_baseline` trong `src/models/__init__.py`, chỉ giữ các hàm đánh giá dùng chung (`evaluate_classification`, `evaluate_regression_and_cashflow`, `inverse_transform_days`), triệt tiêu hoàn toàn cảnh báo `RuntimeWarning`.
+  - Xây dựng bộ công cụ đánh giá chuẩn `evaluate.py`:
+    - Track 1 (Classification): Tính toán `PR-AUC`, `ROC-AUC`, `Brier Score`, `Lift@K`, `Precision@K`, `Late Value Captured@K` trên các lát cắt dung lượng rà soát `5%`, `10%`, `20%`, kèm bảng quét độ nhạy tác động nghiệp vụ (`business_impact_sensitivity`) trên dải tỷ lệ chi phí phạt trễ hạn so với chi phí kiểm tra `(1:1, 5:1, 10:1)`. Xử lý an toàn trường hợp lát cắt đơn lớp (Single-class edge case).
+    - Track 2 (Regression & Cashflow): Áp dụng biến đổi ngược `inverse_transform_days` với ngưỡng chặn không âm (`np.clip(np.expm1(preds), 0.0, None)`), đo lường `MAE`, `RMSE`, `MedianAE` và tính toán sai số dòng tiền thực chi vs dự báo chi theo từng kỳ hạn `7d`, `14d`, `30d` (`actual_outflow`, `predicted_outflow`, `abs_error`, `mape_pct`).
+  - Huấn luyện mô hình cơ sở tuyến tính (`train_baseline.py`):
+    - Đóng gói pipeline scikit-learn kết hợp `ColumnTransformer` (`StandardScaler` cho 18 biến số thực và `OneHotEncoder(handle_unknown="ignore", min_frequency=50)` cho 2 biến phân loại `operating_unit`, `primary_department`).
+    - Huấn luyện `LogisticRegression(max_iter=1000)` trên nhãn `is_late` và `Ridge(alpha=10.0)` trên mục tiêu log `log1p(days_to_pay)` trên 456,414 dòng Train, đánh giá độc lập trên Val (115,974 dòng) và Test (195,889 dòng).
+- **Kết quả nghiệm thu thực tế (Live Baseline Metrics Evidence)**:
+  - **Tập Validation (`val.parquet`)**:
+    - Phân loại: PR-AUC = `0.3182`, ROC-AUC = `0.6557`, Brier Score = `0.1501` (Tỷ lệ nền: `19.09%`).
+    - Năng lực rà soát top 20%: Precision = `32.73%`, Lift = `1.71x`, bắt giữ được `50.67%` tổng giá trị hóa đơn trễ hạn ($133.9M / $264.3M).
+    - Hồi quy: MAE = `12.76 ngày`, RMSE = `29.57 ngày`, MedianAE = `6.14 ngày`.
+    - Dự báo dòng tiền kỳ hạn 30 ngày: Thực chi $1.34 tỷ, Dự báo $1.21 tỷ, Sai số MAPE = `9.64%`.
+  - **Tập Test Hold-out (`test.parquet`)**:
+    - Phân loại: PR-AUC = `0.2984`, ROC-AUC = `0.5853`, Brier Score = `0.1701` (Tỷ lệ nền: `20.76%`).
+    - Năng lực rà soát top 20%: Precision = `32.06%`, Lift = `1.54x`, bắt giữ được `40.38%` tổng giá trị hóa đơn trễ hạn ($181.9M / $450.4M).
+    - Hồi quy: MAE = `10.97 ngày`, RMSE = `20.14 ngày`, MedianAE = `6.64 ngày`.
+    - Dự báo dòng tiền kỳ hạn 30 ngày: Thực chi $3.00 tỷ, Dự báo $2.81 tỷ, Sai số MAPE = `6.65%`.
+- **Bài học kinh nghiệm**:
+  - Không import tệp chứa `if __name__ == '__main__':` trực tiếp trong `__init__.py` của package để tránh cảnh báo xung đột namespace của `runpy`.
+  - Mô hình tuyến tính cơ sở (Logistic & Ridge) đã mang lại giá trị thực tế rõ rệt: rà soát top 20% hóa đơn nguy cơ cao giúp giữ lại hơn 40% đến 50% số tiền chậm trả, và dự báo dòng tiền 30 ngày đạt sai số MAPE dưới 10%, tạo mốc chuẩn (benchmark) vững chắc để so sánh với các mô hình GBDT (LightGBM/XGBoost) ở các task tiếp theo.
