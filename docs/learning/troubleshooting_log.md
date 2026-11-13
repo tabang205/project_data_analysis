@@ -46,3 +46,20 @@ Mỗi sự cố được ghi lại theo định dạng:
   - Khi tổng hợp lịch sử uy tín của nhà cung cấp, chỉ được phép sử dụng các hoá đơn đã hoàn tất thanh toán trước ngày `Invoice_Date` của hoá đơn hiện tại (`prior.Payment_Date < current.Invoice_Date`).
   - Viết unit test riêng biệt để kiểm tra chống rò rỉ (`test_features_ignore_future_payments_after_invoice_date`).
 - **Bài học kinh nghiệm**: Point-in-time correctness là yếu tố sống còn trong mọi bài toán Machine Learning trên chuỗi thời gian và tài chính.
+
+### ERR-20261113-04: Xử Lý Biên Timestamp Vượt Ngưỡng Nanosecond (Pandas datetime64[ns] Bounds) & Thực Chiến Ingestion 1.3M Dòng
+- **Thời gian & Giai đoạn**: 2026-11-13 | Task 2: Reproducible Raw Ingestion & Pandera Validation
+- **Triệu chứng**: Khi chuyển đổi cột `Invoice_Date` và `Payment_Date` từ epoch milliseconds dạng số nguyên sang `datetime64[ns]`, xuất hiện lỗi `OutOfBoundsDatetime` nếu gặp giá trị vượt ngoài khoảng giới hạn nanosecond của Pandas (`1677-09-21` đến `2262-04-11`) hoặc các giá trị dữ liệu bất thường (ví dụ năm 2083 hoặc epoch cực lớn/âm).
+- **Nguyên nhân cốt lõi**: Pandas 2.2+ hỗ trợ nhiều độ phân giải thời gian (`s`, `ms`, `us`, `ns`), nhưng khi ép kiểu về `datetime64[ns]` để đồng nhất chuẩn Parquet/Pandera, các mốc thời gian ngoài biên nanosecond sẽ ném ngoại lệ nếu không có cơ chế chặn ngưỡng.
+- **Giải pháp xử lý**:
+  - Triển khai hàm `_coerce_to_naive_datetime64_ns(series)`:
+    1. Chuyển đổi an toàn từ epoch ms sang datetime UTC (`pd.to_datetime(series, unit="ms", utc=True, errors="coerce")`).
+    2. Gỡ bỏ timezone (`.dt.tz_localize(None)`).
+    3. So sánh với `pd.Timestamp.min` và `pd.Timestamp.max` để mask các giá trị vượt biên thành `NaT` trước khi `.astype("datetime64[ns]")`.
+  - Thiết lập schema Pandera `RAW_AP_SCHEMA` và `ARROW_RAW_SCHEMA` để kiểm định kiểu dữ liệu và đảm bảo trường `FID` không bao giờ rỗng (`nullable=False`).
+- **Kết quả nghiệm thu thực tế (Live Ingestion Evidence)**:
+  - **Tệp đầu ra**: `data/raw/nashville_raw.parquet`
+  - **Dung lượng**: 32.90 MB (Snappy compressed, 654 row groups)
+  - **Tổng số bản ghi**: Chính xác 1,307,617 dòng (khớp 100% với metadata ArcGIS FeatureServer `count=1307617`).
+  - **Thời gian thực thi**: ~14 phút 53 giây với cơ chế stream chunk Parquet, ghi nguyên tử (atomic write) và tự động dọn sạch thư mục tạm `.tmp_chunks_nashville_raw`.
+- **Bài học kinh nghiệm**: Luôn xử lý biên nanosecond cho timestamp trước khi ép kiểu trong Pandas, và kết hợp Parquet chunking để vừa tiết kiệm RAM vừa hỗ trợ resume an toàn khi download dữ liệu lớn.
