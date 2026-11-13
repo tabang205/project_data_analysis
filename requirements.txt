@@ -25,3 +25,8 @@ python-dotenv==1.2.3
 
 # Testing & Quality Assurance
 pytest==9.2.0
+
+# Notebook Execution & Exploration
+nbconvert==7.17.2
+ipykernel==7.4.0
+

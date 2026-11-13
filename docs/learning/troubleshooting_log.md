@@ -85,3 +85,18 @@ Mỗi sự cố được ghi lại theo định dạng:
   - **Thời gian xử lý toàn trình**: ~2.8 giây.
 - **Bài học kinh nghiệm**: Luôn dùng hàm `ROUND(..., 2)` đối với các trường tiền tệ tài chính khi tổng hợp bằng DuckDB/SQL, và xây dựng cơ chế bóc tách tham số độc lập cho từng prepared statement.
 
+### ERR-20261113-06: Triệt Tiêu Thiên Lệch Cắt Phải (Right-Censoring Bias) Bằng Vùng Đệm 61 Ngày & Đỉnh Nhọn Xác Suất Net 30
+- **Thời gian & Giai đoạn**: 2026-11-13 | Task 4: Statistical EDA & Hypothesis Testing (`notebooks/01_eda_statistical_audit.ipynb`)
+- **Triệu chứng**:
+  1. Trong những tháng cuối năm 2025 (đặc biệt tháng 11 và tháng 12/2025), tỷ lệ trễ hạn quan sát sụp đổ giả tạo một cách phi tự nhiên: tháng 11 giảm xuống 9.12%, tháng 12 giảm về 0.00%, đồng thời `median_days_to_pay` rơi xuống 16 ngày (thay vì 30 ngày như thông thường). Nếu đưa 2 tháng này vào tập đánh giá Test, mô hình sẽ bị "ảo tưởng" rằng hiệu suất thanh toán của thành phố đạt mức hoàn hảo.
+  2. Phân phối `days_to_pay` có trung vị (median = 30) và phân vị 75 (p75 = 30) trùng khít nhau, với IQR chỉ bằng 3.0 ngày, trong khi giá trị lớn nhất đạt tới 3,666 ngày (độ lệch skewness = 13.30, kurtosis = 338.99).
+- **Nguyên nhân cốt lõi**:
+  - Dữ liệu hóa đơn AP được trích xuất với mốc chốt thanh toán tối đa `max(Payment_Date) = 2025-12-31`. Các hóa đơn phát hành trong tháng 11 và 12/2025 nếu mất $>30$ hoặc $>60$ ngày để thanh toán thì tại thời điểm 31/12/2025 chúng **chưa được thanh toán** (vẫn đang mở), nên không thể xuất hiện trong sổ cái lưu vết thanh toán. Do đó, chỉ những hóa đơn được thanh toán siêu tốc (trong vòng vài ngày đến 16-30 ngày) mới kịp xuất hiện, gây ra hiện tượng Cắt Phải (Right-Censoring Bias / Truncation Distortion).
+  - Khái niệm Net 30 là quy định pháp lý thanh toán công (Prompt Payment Act) của chính quyền Nashville, khiến các phòng ban kế toán gom và giải ngân hàng loạt đúng vào ngày thứ 30.
+- **Giải pháp xử lý**:
+  - Khảo sát thực chứng phân vị: 90% hóa đơn (`p90`) được thanh toán trong vòng 61 ngày (`days_to_pay <= 61`, tỷ lệ hóa đơn mất $>60$ ngày chỉ là 10.08%).
+  - Thiết lập mốc kết thúc tập kiểm thử `test_end = 2025-10-31`, tạo ra vùng đệm thời gian đúng bằng 61 ngày (từ 01/11/2025 đến 31/12/2025). Mọi hóa đơn phát hành trước hoặc vào ngày 31/10/2025 đều có đủ ít nhất 61 ngày để được thanh toán và quan sát đầy đủ, triệt tiêu 90% rủi ro cắt phải.
+  - Sử dụng các thước đo thống kê phi tham số (Non-parametric: Median, IQR, Percentiles) và kiểm định thứ hạng Mann-Whitney U thay vì Mean, Std hay Student's t-test khi so sánh các nhóm dữ liệu.
+- **Bài học kinh nghiệm**: Trong bài toán dự báo tài chính AP hoặc Survival Analysis có mốc chốt dữ liệu (data snapshot cutoff), luôn phân tích phân vị thời gian hoàn tất (`p90 completion time`) để tạo vùng đệm an toàn trước mốc chốt, ngăn ngừa triệt để Right-Censoring Bias.
+
+
