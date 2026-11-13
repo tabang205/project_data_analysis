@@ -3,7 +3,10 @@
 An end-to-end, leakage-free Data Science system for **Accounts Payable (AP) Late Payment Risk Scoring** and **Cashflow Timing Forecasting**, built on **1,307,617** real Metro Nashville Vendor Payment records (`$12.94B` across `19,688` independent suppliers).
 
 <p align="center">
-  <img src="assets/workbench_preview.png" alt="Metro Nashville AP 5-Zone Enterprise Analytics Workbench (FastAPI + Tailwind/JS)" width="96%" />
+  <img src="assets/demo.webp" alt="Interactive 5-Zone FastAPI + Tailwind Enterprise Analytics Workbench Demo" width="96%" />
+</p>
+<p align="center">
+  <sub>Interactive 38s UI Walkthrough · <a href="assets/demo.gif">GIF Fallback (3.7 MB)</a> · <a href="assets/workbench_preview.png">Static Preview</a></sub>
 </p>
 
 > **5-Zone Enterprise Workbench UI** (`src/api/main.py` + `src/web/static/`): Left navigation rail, department filter sidebar, 3-track analytical workspace, right-hand model verification & SHAP/invoice inspector, and live telemetry status bar.
