@@ -2,6 +2,12 @@
 
 An end-to-end, leakage-free Data Science system for **Accounts Payable (AP) Late Payment Risk Scoring** and **Cashflow Timing Forecasting**, built on **1,307,617** real Metro Nashville Vendor Payment records (`$12.94B` across `19,688` independent suppliers).
 
+<p align="center">
+  <img src="assets/demo.webp" alt="Metro Nashville AP Risk & Cashflow Interactive Dashboard Demo" width="90%" />
+</p>
+
+> *Fallback GIF*: [assets/demo.gif](assets/demo.gif)
+
 ---
 
 ## 1. Business Problem & Dual-Track Formulation
