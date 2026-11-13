@@ -152,3 +152,30 @@ Mỗi sự cố được ghi lại theo định dạng:
 - **Bài học kinh nghiệm**:
   - Không import tệp chứa `if __name__ == '__main__':` trực tiếp trong `__init__.py` của package để tránh cảnh báo xung đột namespace của `runpy`.
   - Mô hình tuyến tính cơ sở (Logistic & Ridge) đã mang lại giá trị thực tế rõ rệt: rà soát top 20% hóa đơn nguy cơ cao giúp giữ lại hơn 40% đến 50% số tiền chậm trả, và dự báo dòng tiền 30 ngày đạt sai số MAPE dưới 10%, tạo mốc chuẩn (benchmark) vững chắc để so sánh với các mô hình GBDT (LightGBM/XGBoost) ở các task tiếp theo.
+
+### ERR-20261113-09: Cấu Trúc Thư Mục Lồng Nhau Khi Tải Output Kaggle & Hành Vi Kaggle CLI Trên Windows PowerShell
+- **Thời gian & Giai đoạn**: 2026-11-13 | Task 8: Kaggle Dataset Import, Cloud Training & Artifact Retrieval
+- **Triệu chứng**:
+  1. Khi chạy `kaggle datasets create` trên Windows PowerShell với `2>&1`, quá trình tải lên hoàn tất 100% (`Upload successful` cho `train.parquet`, `val.parquet`, `test.parquet`), nhưng PowerShell báo `Command exited with code 1` (`NativeCommandError`) và lệnh kiểm tra `kaggle datasets status` ngay sau đó trả về `403 Client Error: Forbidden`.
+  2. Khi dùng `kaggle_kernels_output` để tải kết quả từ notebook xuất ra `/kaggle/working/artifacts/` về `artifacts/kaggle_results/`, toàn bộ 13 tệp kết quả bị lồng thêm một cấp thư mục con `artifacts/kaggle_results/artifacts/...` thay vì nằm trực tiếp ở `artifacts/kaggle_results/`.
+- **Nguyên nhân cốt lõi**:
+  - `kaggle.EXE` (phiên bản `2.2.4`) ghi thanh tiến trình `tqdm` ra `stderr`; PowerShell diễn giải `stderr` thành `RemoteException` khi chuyển hướng `2>&1`. Ngoài ra, endpoint `GetDatasetStatus` trả về 403 cho tập dữ liệu private mới khởi tạo chưa hoàn tất lập chỉ mục, trong khi `kaggle datasets files` hoạt động bình thường.
+  - Kaggle Kernel Output bảo toàn đường dẫn tương đối bên dưới `/kaggle/working/`. Vì notebook ghi vào `/kaggle/working/artifacts/`, khi tải về `artifacts/kaggle_results/` thì thư mục con `artifacts/` được giữ nguyên theo cấu trúc lưu trữ của worker Kaggle.
+- **Giải pháp xử lý**:
+  - Kiểm tra trạng thái sẵn sàng của tập dữ liệu private mới upload bằng `kaggle datasets files bangta205/metro-nashville-ap-processed` (xác nhận đủ `train.parquet` 25,742,305 bytes, `val.parquet` 6,711,031 bytes, `test.parquet` 11,249,924 bytes) trước khi đẩy kernel.
+  - Sau khi kernel `bangta205/nashville-ap-dual-track-gbdt` đạt `KernelWorkerStatus.COMPLETE`, tải output và dời toàn bộ 13 tệp từ `artifacts/kaggle_results/artifacts/*` lên trực tiếp `artifacts/kaggle_results/`, xóa thư mục con rỗng `artifacts/` để khớp đúng hợp đồng đường dẫn cho Dashboard (Task 9).
+- **Bài học kinh nghiệm**: Luôn kiểm tra cấu trúc cây thư mục thực tế sau khi gọi `kaggle_kernels_output` nếu notebook ghi vào thư mục con của `/kaggle/working/`, và dùng `kaggle datasets files` để xác minh upload tập dữ liệu private thay vì chỉ dựa vào `datasets status`.
+
+### ERR-20261113-10: Nghịch Lý Hiệu Chuẩn Isotonic Trên Tập Val & Hiệu Ứng Vách Đá Net-30 Ở Dự Báo Dòng Tiền 30 Ngày
+- **Thời gian & Giai đoạn**: 2026-11-13 | Task 8: Kaggle GBDT Evaluation & Error Analysis (`artifacts/kaggle_results/gbdt_metrics.json`, `test_predictions.parquet`)
+- **Triệu chứng**:
+  1. Hiệu chuẩn `IsotonicRegression` trên `val` giúp giảm `Brier Score` trên Val (`0.1452 -> 0.1405` với XGBoost, `0.1442 -> 0.1398` với LightGBM), nhưng trên Test hold-out thì Brier Score sau hiệu chuẩn lại kém hơn nhẹ so với xác suất thô (`0.1469` vs `0.1459` với XGBoost; `0.1487` vs `0.1484` với LightGBM).
+  2. Ở Track 2, XGBoost đạt `MAE = 8.73` ngày và `Cashflow 14d MAPE = 0.65%` (vượt xa Ridge `23.67%`), nhưng `Cashflow 30d MAPE` lại là `11.94%` (`$2.65B` dự báo vs `$3.00B` thực chi), cao hơn mức `6.65%` của Ridge.
+- **Nguyên nhân cốt lõi**:
+  - **Dịch chuyển tỷ lệ nền & In-sample Val Calibration (`val_calibrated_in_sample: true`)**: Tập Val (H2 2024) có tỷ lệ trễ `19.09%`, thấp hơn Test (2025) là `20.76%`. Khớp hàm bậc thang Isotonic trên chính tập Val đã dùng cho early stopping khiến nhóm xác suất cao bị nén bảo thủ: ở decile cao nhất của `xgb_prob_late` `(0.361, 0.629]`, xác suất dự báo trung bình trên Test chỉ đạt `0.4356` so với tỷ lệ trễ thực tế `0.5399` (lệch `10.43%`).
+  - **Hiệu ứng ngưỡng cứng Net-30 (`pred_diff <= 30`)**: Phân tích `test_predictions.parquet` cho thấy trung vị `xgb_pred_days = 30.81` ngày. Do lượng lớn hóa đơn tập trung giải ngân đúng ngày thứ 30, có **75,498 hóa đơn** thực trả `<= 30` ngày (tổng giá trị **`$560.76M`**) bị GBDT dự báo làm tròn ở mức trung bình `34.49` ngày (`> 30`), làm hụt tổng chi tích lũy kỳ hạn 30 ngày.
+- **Giải pháp xử lý**:
+  - Ghi nhận minh bạch cờ `val_calibrated_in_sample: true`, so sánh song song `uncalibrated_brier_score` và `brier_score` trên cả Val và Test trong `gbdt_metrics.json` và `docs/learning/04_modeling_and_eval.md`.
+  - Đề xuất cho vòng lặp v2: sử dụng Platt Scaling hoặc out-of-fold calibration tách khỏi early stopping cho Track 1, và kết hợp xác suất `1 - P(is_late)` cho dự báo dòng tiền mốc đúng 30 ngày ở Track 2.
+- **Bài học kinh nghiệm**: Không dùng cùng một lát cắt Validation cho cả early stopping lẫn non-parametric Isotonic calibration; đồng thời với các biến mục tiêu có đỉnh nhọn nhân tạo như Net-30, phép đánh giá ngưỡng cứng `<= 30` nhạy cảm cao với sai lệch nhỏ quanh biên.
+
