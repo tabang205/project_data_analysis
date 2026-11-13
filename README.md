@@ -2,6 +2,12 @@
 
 Bộ giải pháp phân tích dữ liệu kế toán - tài chính kết hợp **Production Financial RAG** (Contextual Retrieval + Hybrid Search) và **Intelligent Document Processing (IDP)** trích xuất, đối soát hóa đơn tự động bằng PaddleOCR & Qwen-VL/LLM.
 
+## Demo Trực Quan (AP & Invoice Dashboard)
+
+![Financial Data Analysis Demo](assets/demo.webp)
+
+> *Nếu trình duyệt không hỗ trợ Animated WebP, xem bản [GIF dự phòng](assets/demo.gif).*
+
 ---
 
 ## Cấu trúc Dự án
