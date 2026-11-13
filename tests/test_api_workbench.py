@@ -116,6 +116,9 @@ def test_invoice_triage_filtering_and_validation() -> None:
     bad_model = client.get("/api/v1/invoices/triage", params={"model": "random_forest"})
     assert bad_model.status_code == 422
 
+    bad_limit = client.get("/api/v1/invoices/triage", params={"limit": 201})
+    assert bad_limit.status_code == 422
+
 
 def test_learning_docs_endpoints_and_traversal_guard() -> None:
     client = TestClient(app)
@@ -216,6 +219,15 @@ def test_fallback_mode_when_kaggle_results_missing(
         assert res.status_code == 200
     assert client.get("/api/v1/health").json()["kaggle_ready"] is False
 
+    eda_dir = artifacts_dir / "eda"
+    eda_dir.mkdir()
+    (eda_dir / "01_data_audit_funnel.png").write_bytes(b"\x89PNG\r\n\x1a\nfake")
+    clear_artifact_cache()
+    art_res = client.get("/artifacts/eda/01_data_audit_funnel.png")
+    assert art_res.status_code == 200
+    assert art_res.content == b"\x89PNG\r\n\x1a\nfake"
+    assert client.get("/artifacts/missing.png").status_code == 404
+
 
 def test_frontend_five_zone_dom_and_static_assets() -> None:
     client = TestClient(app)
@@ -230,6 +242,8 @@ def test_frontend_five_zone_dom_and_static_assets() -> None:
     js_res = client.get("/static/app.js")
     assert js_res.status_code == 200
     assert "console.log(" not in js_res.text
+    assert "function escapeHtml(" in js_res.text
+    assert 'id="export-triage-csv-btn"' in html
 
     css_res = client.get("/static/styles.css")
     assert css_res.status_code == 200
