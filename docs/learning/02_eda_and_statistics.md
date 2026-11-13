@@ -40,7 +40,7 @@ Bảng đối chiếu toàn diện các đại lượng thống kê được tr�
 | | Mean / Standard Deviation | $15,943.75 / $292,783.34 | Bị chi phối bởi các dự án xây dựng hạ tầng hàng chục triệu USD |
 | | p90 / p95 / p99 / Max | $8,059.96 / $23,747.07 / $265,189.87 / $73,182,359.43 | Phân phối quyền lực (Power-law), bắt buộc dùng Log transform |
 | | Skewness / Kurtosis | 98.56 / 14,976.79 | Mức độ bất đối xứng cực độ |
-| **Ngưỡng Trễ Hạn** | Net 15 (`days_to_pay > 15`) | 72.63% (589,715 hóa đơn) | Ngưỡng quá khắt khe, không phù hợp thực tế quy trình hành chính |
+| **Ngưỡng Trễ Hạn** | Net 15 (`days_to_pay > 15`) | 83.71% (679,689 hóa đơn) | Ngưỡng quá khắt khe, không phù hợp thực tế quy trình hành chính |
 | | **Net 30 (`days_to_pay > 30`)** | **24.76% (201,026 hóa đơn)** | **Chuẩn mực thanh toán công; tỷ lệ mất cân bằng mẫu 3:1 lý tưởng** |
 | | Net 45 (`days_to_pay > 45`) | 14.41% (116,958 hóa đơn) | Ngưỡng trễ hạn nợ nghiêm trọng (Delinquent) |
 | | Net 60 (`days_to_pay > 60`) | 10.08% (81,870 hóa đơn) | Khớp chính xác với ngưỡng phân vị 90 (61 ngày) |
@@ -141,7 +141,7 @@ Tháng 12/2025 có số ngày thanh toán trung vị chỉ là **16.0 ngày**, k
 
 #### A. Phân tích độ nhạy ngưỡng thanh toán
 Trong các hợp đồng thương mại và mua sắm công vụ, điều khoản công nợ có thể linh hoạt theo thỏa thuận:
-- **Ngưỡng Net 15 (`> 15 ngày`)**: Chiếm **72.63%** (589,715 hóa đơn). Trong khu vực công, quy trình đối soát chứng từ 3 bên (Three-way Matching: Hóa đơn, Đơn đặt hàng PO, Phiếu nhập kho) hiếm khi hoàn tất trước 15 ngày. Ngưỡng này quá gắt gao và gây nhiễu cảnh báo giả.
+- **Ngưỡng Net 15 (`> 15 ngày`)**: Chiếm **83.71%** (679,689 hóa đơn). Trong khu vực công, quy trình đối soát chứng từ 3 bên (Three-way Matching: Hóa đơn, Đơn đặt hàng PO, Phiếu nhập kho) hiếm khi hoàn tất trước 15 ngày. Ngưỡng này quá gắt gao và gây nhiễu cảnh báo giả.
 - **Ngưỡng Net 30 (`> 30 ngày`)**: Chiếm **24.76%** (201,026 hóa đơn). Đây là chuẩn mực Prompt Payment Act. Tỷ lệ mất cân bằng giữa lớp trễ (24.76%) và lớp đúng hạn (75.24%) xấp xỉ **1:3**, một tỷ lệ vàng cho các thuật toán phân loại nhị phân mà không đòi hỏi kỹ thuật oversampling cực đoan (như SMOTE).
 - **Ngưỡng Net 45 (`> 45 ngày`)**: Chiếm **14.41%** (116,958 hóa đơn). Đại diện cho các trường hợp vướng mắc giải trình hoặc trục trặc hành chính vừa.
 - **Ngưỡng Net 60 (`> 60 ngày`)**: Chiếm **10.08%** (81,870 hóa đơn). Đại diện cho các khoản nợ chậm trễ nghiêm trọng.
